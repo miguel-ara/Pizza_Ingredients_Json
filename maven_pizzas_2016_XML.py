@@ -18,25 +18,30 @@ TAM = ['s','m','l','xl', 'xxl']
 
 def extract():
 
-    # Carga los datos de los csvs correspondientes a los pedidos, las pizzas y los ingredintes de las pizzas
+    # Carga los datos de los csvs correspondientes a los pedidos, las fechas, las pizzas y los ingredientes de las pizzas
 
     pedidos = pd.read_csv("order_details.csv", sep = ";", encoding = "UTF-8")
     pizzas = pd.read_csv("pizzas.csv", sep = ",", encoding = "UTF-8")
     ingredientes = pd.read_csv("pizza_types.csv", sep = ",", encoding = "LATIN-1")
-    return pedidos, pizzas, ingredientes
+    fechas = pd.read_csv("orders.csv", sep = ';', encoding = 'UTF-8')
+
+    return pedidos, pizzas, ingredientes, fechas
 
 
-def transform(pedidos, pizzas, ingredientes):
+def transform(pedidos, pizzas, ingredientes, fechas):
 
-    # Recibe los 3 dataframes, pedidos, pizzas e ingredientes y va trasnformando los datos para obtener
+    # Recibe los 4 dataframes, pedidos, fechas, pizzas e ingredientes y va trasnformando los datos para obtener
     # un diccionario con los ingredientes a comprar semanalmente. Primero, genera un informe para 
     # cada dataframe extraído (ver función informe_datos)
 
-    informe_datos(pedidos, pizzas, ingredientes)
+    informe_datos(pedidos, pizzas, ingredientes, fechas)
 
     # El único de los csvs que contiene Nulls y en el que los datos están mal formateados es el de
     # order_details.csv, el cual hemos cargado en el dataframe de pedidos. Por ello, primero deberemos
-    # limpiar este dataframe de Nulls, quitandolos de las columnas pizza_id y quantity.
+    # limpiar este dataframe de Nulls, quitandolos de las columnas pizza_id y quantity. El csv de orders.csv
+    # también tiene datos érroneos, pero como en nuestro modelo predictivo no se han tenido en cuenta las fechas
+    # y la limpieza de estas mismas ya se ha realizado previamente en el bloque anterior (Repo de Git:
+    # Pizza_Ingredients_2016), no hace falta que procesemos el dataframe de fechas de nuevo.
 
     pedidos = pedidos[pedidos['pizza_id'].isnull() == False]
     pedidos = pedidos[pedidos['quantity'].isnull() == False]
@@ -110,6 +115,7 @@ def load(dict_ingredientes):
         ET.SubElement(ingrediente, "Ingrediente", Nombre = str(key))  # Nombre ingrediente
         ET.SubElement(ingrediente, "Cantidad", Unidades = str(dict_ingredientes[key]))  # Cantidad de ese ingrediente
 
+    ET.indent(root)
     tree = ET.ElementTree(root)  # Escribimos todos los datos organizados en un fichero xml
     tree.write("compra_semanal_ingredientes.xml", xml_declaration = True, encoding = 'UTF-8')
     
@@ -151,10 +157,10 @@ def calcular_ingredientes(pizza, pizza_sin_procesar, multiplicador, dict_ingredi
         dict_ingredientes[ingredient] += num_pizzas_sem[pizza_sin_procesar]*multiplicador
 
 
-def informe_datos(pedidos, pizzas, ingredientes):
+def informe_datos(pedidos, pizzas, ingredientes, fechas):
 
-    dataframes = [pedidos, pizzas, ingredientes]
-    archivos = ["order_details.csv", "pizzas.csv", "pizza_types.csv"]
+    dataframes = [pedidos, pizzas, ingredientes, fechas]
+    archivos = ["order_details.csv", "pizzas.csv", "pizza_types.csv", "orders.csv"]
 
     # df.info() aporta información extra que no nos interesa, mejor obtener a mano solo lo que nos interesa del dataframe.
     # Esto lo haremos para cada dataframe que hemos cargado, y guardaremos todos los resultados en un xml conjunto llamado
@@ -178,6 +184,7 @@ def informe_datos(pedidos, pizzas, ingredientes):
             ET.SubElement(columna, "Null", Número_de_Nulls_columna = str(dataframes[i][nombre_col].isnull().sum()))
             ET.SubElement(columna, "Tipología", Tipología_columna = str(dataframes[i][nombre_col].dtype))
 
+    ET.indent(root)
     tree = ET.ElementTree(root)  # Escribimos todos los datos organizados en un fichero xml
     tree.write("informe_pizzas_maven_2016.xml", xml_declaration = True, encoding = 'UTF-8')
 
@@ -186,8 +193,8 @@ def ETL():
 
     # ETL incluyendo informe de cada dataframe extraído
 
-    pedidos, pizzas, ingredientes = extract()
-    compra = transform(pedidos, pizzas, ingredientes)
+    pedidos, pizzas, ingredientes, fechas = extract()
+    compra = transform(pedidos, pizzas, ingredientes, fechas)
     load(compra)
 
 
